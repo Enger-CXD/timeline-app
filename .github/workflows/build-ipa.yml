@@ -1,0 +1,60 @@
+name: Build unsigned IPA (TrollStore)
+
+# 在 GitHub 免费提供的 macOS 机器上编译，不需要自己的 Mac、不需要开发者账号
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - name: 取代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: 打印环境信息
+        run: |
+          flutter --version
+          xcodebuild -version
+
+      - name: 拉依赖
+        run: flutter pub get
+
+      - name: pod install
+        run: |
+          cd ios
+          pod install
+
+      - name: 编译（不签名）
+        run: flutter build ios --release --no-codesign
+
+      - name: 打包成 IPA
+        run: |
+          rm -rf Payload
+          mkdir Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/
+          rm -f time_line_demo-unsigned.ipa
+          zip -qry time_line_demo-unsigned.ipa Payload
+          ls -lh time_line_demo-unsigned.ipa
+
+      - name: 上传为构建产物（可在仓库 Actions 页面下载）
+        uses: actions/upload-artifact@v4
+        with:
+          name: time_line_demo-unsigned-ipa
+          path: time_line_demo-unsigned.ipa
+          retention-days: 7
+
+      - name: 同时发布到 Release（便于用镜像直链下载）
+        if: github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: build-${{ github.run_number }}
+          files: time_line_demo-unsigned.ipa
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
