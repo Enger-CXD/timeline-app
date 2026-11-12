@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: 取代码
         uses: actions/checkout@v4
@@ -25,10 +25,13 @@ jobs:
       - name: 拉依赖
         run: flutter pub get
 
-      - name: pod install
+      - name: pod install（有 Podfile 时才执行）
         run: |
-          cd ios
-          pod install
+          if [ -f ios/Podfile ]; then
+            cd ios && pod install
+          else
+            echo "没有 Podfile，交给 flutter build 自动生成"
+          fi
 
       - name: 编译（不签名）
         run: flutter build ios --release --no-codesign
