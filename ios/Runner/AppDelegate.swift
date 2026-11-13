@@ -26,7 +26,11 @@ import UIKit
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     // 用注册表拿到 binaryMessenger（SceneDelegate 模板下 AppDelegate 的 window 不一定可用）
-    let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "TimelineNative")
+    // 注意：registrar(forPlugin:) 返回可选值，必须先解包
+    guard let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "TimelineNative") else {
+      NSLog("TimelineNative: 拿不到 plugin registrar，原生通道未注册")
+      return
+    }
     registerChannels(messenger: registrar.messenger())
   }
 
