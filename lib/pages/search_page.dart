@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../theme.dart';
 import 'package:intl/intl.dart';
 
 import '../data.dart';
@@ -29,15 +31,15 @@ class _SearchPageState extends State<SearchPage> {
     }).toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFCF7F2),
+      backgroundColor: AppTheme.bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFCF7F2),
+        backgroundColor: AppTheme.bg,
         elevation: 0,
         title: TextField(
           onChanged: (v) => setState(() => _keyword = v),
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             hintText: '搜索标题、内容或日期…',
-            prefixIcon: Icon(Icons.search, color: Colors.orange),
+            prefixIcon: Icon(Icons.search, color: AppTheme.primary),
             border: InputBorder.none,
           ),
         ),
@@ -88,7 +90,7 @@ class _SearchPageState extends State<SearchPage> {
                                           fontSize: 15,
                                           color: item.isCompleted
                                               ? Colors.grey
-                                              : const Color(0xFF7C2D12),
+                                              : AppTheme.ink,
                                           decoration: item.isCompleted
                                               ? TextDecoration.lineThrough
                                               : null,
@@ -119,23 +121,23 @@ class _SearchPageState extends State<SearchPage> {
                                       DateFormat('yyyy-MM-dd')
                                           .format(DateTime.tryParse(item.date) ??
                                               DateTime.now()),
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                           fontSize: 11,
-                                          color: Color(0xFFB45309)),
+                                          color: AppTheme.primary),
                                     ),
                                     if (item.images.isNotEmpty) ...[
                                       const SizedBox(width: 10),
-                                      const Icon(Icons.image,
-                                          size: 12, color: Colors.orange),
+                                      Icon(Icons.image,
+                                          size: 12, color: AppTheme.primary),
                                       Text(' ${item.images.length}',
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                               fontSize: 11,
-                                              color: Colors.orange)),
+                                              color: AppTheme.primary)),
                                     ],
                                     if (item.voicePath.isNotEmpty) ...[
                                       const SizedBox(width: 10),
-                                      const Icon(Icons.mic,
-                                          size: 12, color: Colors.orange),
+                                      Icon(Icons.mic,
+                                          size: 12, color: AppTheme.primary),
                                     ],
                                   ],
                                 ),

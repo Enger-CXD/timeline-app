@@ -3,6 +3,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+
+import '../theme.dart';
 import 'package:intl/intl.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
@@ -92,19 +94,19 @@ class _DetailPageState extends State<DetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFCF7F2),
+      backgroundColor: AppTheme.bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFCF7F2),
+        backgroundColor: AppTheme.bg,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.orange),
+        iconTheme: IconThemeData(color: AppTheme.primary),
         title: Text(
           _item.title,
-          style: const TextStyle(color: Color(0xFF7C2D12)),
+          style: TextStyle(color: AppTheme.ink),
         ),
         actions: [
           IconButton(
             tooltip: '编辑',
-            icon: const Icon(Icons.edit_outlined, color: Colors.orange),
+            icon: Icon(Icons.edit_outlined, color: AppTheme.primary),
             onPressed: _edit,
           ),
         ],
@@ -134,10 +136,10 @@ class _DetailPageState extends State<DetailPage> {
 
           if (_item.voicePath.isNotEmpty) ...[
             const SizedBox(height: 24),
-            const Text(
+            Text(
               '语音',
               style: TextStyle(
-                  fontWeight: FontWeight.bold, color: Colors.orange),
+                  fontWeight: FontWeight.bold, color: AppTheme.primary),
             ),
             const SizedBox(height: 8),
             Container(
@@ -145,7 +147,7 @@ class _DetailPageState extends State<DetailPage> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFFAE8DC)),
+                border: Border.all(color: AppTheme.primarySoft),
               ),
               child: Row(
                 children: [
@@ -154,7 +156,7 @@ class _DetailPageState extends State<DetailPage> {
                     icon: Icon(
                       _playing ? Icons.stop_circle : Icons.play_circle,
                       size: 34,
-                      color: Colors.orange,
+                      color: AppTheme.primary,
                     ),
                   ),
                   Expanded(
@@ -176,8 +178,8 @@ class _DetailPageState extends State<DetailPage> {
             const SizedBox(height: 24),
             Text(
               '图片（${_item.images.length}）',
-              style: const TextStyle(
-                  fontWeight: FontWeight.bold, color: Colors.orange),
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, color: AppTheme.primary),
             ),
             const SizedBox(height: 8),
             GridView.builder(
@@ -197,8 +199,8 @@ class _DetailPageState extends State<DetailPage> {
                     File(_item.images[i]),
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => Container(
-                      color: Colors.orange.shade50,
-                      child: const Icon(Icons.broken_image, color: Colors.orange),
+                      color: AppTheme.primarySoft,
+                      child: Icon(Icons.broken_image, color: AppTheme.primary),
                     ),
                   ),
                 ),
@@ -210,8 +212,8 @@ class _DetailPageState extends State<DetailPage> {
             const SizedBox(height: 24),
             Text(
               '视频（${_item.videos.length}）',
-              style: const TextStyle(
-                  fontWeight: FontWeight.bold, color: Colors.orange),
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, color: AppTheme.primary),
             ),
             const SizedBox(height: 8),
             GridView.builder(
@@ -235,8 +237,8 @@ class _DetailPageState extends State<DetailPage> {
             const SizedBox(height: 24),
             Text(
               '附件（${_item.attachments.length}）',
-              style: const TextStyle(
-                  fontWeight: FontWeight.bold, color: Colors.orange),
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, color: AppTheme.primary),
             ),
             const SizedBox(height: 8),
             ...List.generate(_item.attachments.length, (i) {
@@ -246,10 +248,10 @@ class _DetailPageState extends State<DetailPage> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFFAE8DC)),
+                  border: Border.all(color: AppTheme.primarySoft),
                 ),
                 child: ListTile(
-                  leading: Icon(_attachIcon(a.kind), color: Colors.orange),
+                  leading: Icon(_attachIcon(a.kind), color: AppTheme.primary),
                   title: Text(a.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -484,9 +486,9 @@ class _ImageGalleryPageState extends State<ImageGalleryPage> {
               imageProvider: FileImage(File(widget.paths[i])),
               minScale: PhotoViewComputedScale.contained,
               maxScale: PhotoViewComputedScale.contained * 3,
-              errorBuilder: (_, __, ___) => const Icon(
+              errorBuilder: (_, __, ___) => Icon(
                 Icons.broken_image,
-                color: Colors.orange,
+                color: AppTheme.primary,
                 size: 48,
               ),
             ),

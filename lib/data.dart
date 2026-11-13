@@ -264,6 +264,16 @@ class RecordStore {
     await _settings.put(key, value);
   }
 
+  /// 文本类设置（例如当前配色 id）
+  static String getTextSetting(String key, String fallback) {
+    final v = _settings.get(key);
+    return (v is String && v.isNotEmpty) ? v : fallback;
+  }
+
+  static Future<void> setTextSetting(String key, String value) async {
+    await _settings.put(key, value);
+  }
+
   // ---------------- 文件处理 ----------------
 
   /// 把用户选择的图片复制到应用私有目录，返回新路径

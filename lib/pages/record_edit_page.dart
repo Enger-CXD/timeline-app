@@ -4,6 +4,8 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+
+import '../theme.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:record/record.dart';
@@ -85,8 +87,59 @@ class _RecordEditPageState extends State<RecordEditPage> {
 
   // ---------------- 图片 ----------------
 
+  /// 底部弹窗：让用户选「从相册选取」还是「直接拍照」
+  Future<String?> _chooseSource({required bool isVideo}) async {
+    return showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppTheme.bg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Text(
+                isVideo ? '添加视频' : '添加图片',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold, color: AppTheme.ink),
+              ),
+            ),
+            ListTile(
+              leading: Icon(Icons.photo_library_outlined,
+                  color: AppTheme.ink),
+              title: const Text('从相册选取'),
+              onTap: () => Navigator.pop(ctx, 'gallery'),
+            ),
+            ListTile(
+              leading: Icon(isVideo ? Icons.videocam_outlined : Icons.photo_camera,
+                  color: AppTheme.ink),
+              title: Text(isVideo ? '直接拍摄视频' : '直接拍照'),
+              onTap: () => Navigator.pop(ctx, 'camera'),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _pickImages() async {
+    final source = await _chooseSource(isVideo: false);
+    if (source == null) return;
     try {
+      if (source == 'camera') {
+        final shot = await _picker.pickImage(
+          source: ImageSource.camera,
+          imageQuality: 90,
+        );
+        if (shot == null) return;
+        final imported = await RecordStore.importImage(shot.path);
+        setState(() => _images.add(imported));
+        return;
+      }
       final files = await _picker.pickMultiImage(imageQuality: 90);
       if (files.isEmpty) return;
       final imported = <String>[];
@@ -106,8 +159,13 @@ class _RecordEditPageState extends State<RecordEditPage> {
   // ---------------- 视频 ----------------
 
   Future<void> _pickVideo() async {
+    final source = await _chooseSource(isVideo: true);
+    if (source == null) return;
     try {
-      final file = await _picker.pickVideo(source: ImageSource.gallery);
+      final file = await _picker.pickVideo(
+        source: source == 'camera' ? ImageSource.camera : ImageSource.gallery,
+        maxDuration: const Duration(minutes: 10),
+      );
       if (file == null) return;
       final imported = await RecordStore.importVideo(file.path);
       setState(() => _videos.add(imported));
@@ -291,14 +349,14 @@ class _RecordEditPageState extends State<RecordEditPage> {
   Widget build(BuildContext context) {
     final isEdit = widget.existing != null;
     return Scaffold(
-      backgroundColor: const Color(0xFFFCF7F2),
+      backgroundColor: AppTheme.bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFCF7F2),
+        backgroundColor: AppTheme.bg,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.orange),
+        iconTheme: IconThemeData(color: AppTheme.primary),
         title: Text(
           isEdit ? '编辑记录' : '添加新记录',
-          style: const TextStyle(color: Color(0xFF7C2D12)),
+          style: TextStyle(color: AppTheme.ink),
         ),
       ),
       body: ListView(
@@ -343,8 +401,8 @@ class _RecordEditPageState extends State<RecordEditPage> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.calendar_today,
-                      size: 18, color: Colors.orange),
+                  Icon(Icons.calendar_today,
+                      size: 18, color: AppTheme.primary),
                   const SizedBox(width: 10),
                   Text(
                     '${DateFormat('yyyy年M月d日').format(_date)}  $_time',
@@ -361,9 +419,9 @@ class _RecordEditPageState extends State<RecordEditPage> {
           // 图片
           _sectionTitle('图片', trailing: TextButton.icon(
             onPressed: _pickImages,
-            icon: const Icon(Icons.add_photo_alternate,
-                size: 18, color: Colors.orange),
-            label: const Text('添加', style: TextStyle(color: Colors.orange)),
+            icon: Icon(Icons.add_photo_alternate,
+                size: 18, color: AppTheme.primary),
+            label: Text('添加', style: TextStyle(color: AppTheme.primary)),
           )),
           if (_images.isEmpty)
             Text('还没有图片，点“添加”从相册选择',
@@ -387,9 +445,9 @@ class _RecordEditPageState extends State<RecordEditPage> {
                         errorBuilder: (_, __, ___) => Container(
                           width: 88,
                           height: 88,
-                          color: Colors.orange.shade50,
-                          child: const Icon(Icons.broken_image,
-                              color: Colors.orange),
+                          color: AppTheme.primarySoft,
+                          child: Icon(Icons.broken_image,
+                              color: AppTheme.primary),
                         ),
                       ),
                     ),
@@ -421,8 +479,8 @@ class _RecordEditPageState extends State<RecordEditPage> {
           // 视频
           _sectionTitle('视频', trailing: TextButton.icon(
             onPressed: _pickVideo,
-            icon: const Icon(Icons.video_call, size: 18, color: Colors.orange),
-            label: const Text('添加', style: TextStyle(color: Colors.orange)),
+            icon: Icon(Icons.video_call, size: 18, color: AppTheme.primary),
+            label: Text('添加', style: TextStyle(color: AppTheme.primary)),
           )),
           if (_videos.isEmpty)
             Text('还没有视频，点“添加”从相册选择',
@@ -442,8 +500,8 @@ class _RecordEditPageState extends State<RecordEditPage> {
           // 文件附件
           _sectionTitle('文件附件（PDF / Word）', trailing: TextButton.icon(
             onPressed: _pickFiles,
-            icon: const Icon(Icons.attach_file, size: 18, color: Colors.orange),
-            label: const Text('添加', style: TextStyle(color: Colors.orange)),
+            icon: Icon(Icons.attach_file, size: 18, color: AppTheme.primary),
+            label: Text('添加', style: TextStyle(color: AppTheme.primary)),
           )),
           if (_attachments.isEmpty)
             Text('还没有附件，点“添加”选择 PDF 或 Word 文件',
@@ -461,7 +519,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
                 ),
                 child: Row(
                   children: [
-                    Icon(_fileIcon(a.kind), size: 20, color: Colors.orange),
+                    Icon(_fileIcon(a.kind), size: 20, color: AppTheme.primary),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(a.name,
@@ -497,7 +555,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: _recording ? Colors.redAccent : Colors.orange,
+                      color: _recording ? Colors.redAccent : AppTheme.primary,
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -525,7 +583,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
                     onPressed: _togglePlay,
                     icon: Icon(
                       _playing ? Icons.stop_circle : Icons.play_circle,
-                      color: Colors.orange,
+                      color: AppTheme.primary,
                     ),
                   ),
                   IconButton(
@@ -543,7 +601,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
             height: 50,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
+                backgroundColor: AppTheme.primary,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -631,8 +689,8 @@ class _RecordEditPageState extends State<RecordEditPage> {
       child: Row(
         children: [
           Text(text,
-              style: const TextStyle(
-                  fontWeight: FontWeight.bold, color: Color(0xFF7C2D12))),
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, color: AppTheme.ink)),
           const Spacer(),
           if (trailing != null) trailing,
         ],

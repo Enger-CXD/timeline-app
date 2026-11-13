@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
 
+import '../theme.dart';
+
 /// Word（.docx）预览：解压 docx 内部的 word/document.xml，取出文字显示。
 ///
 /// 说明：docx 是压缩包，里面没有“排版后的页面”，所以这里展示的是**正文文字内容**
@@ -95,26 +97,26 @@ class _WordPreviewPageState extends State<WordPreviewPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFCF7F2),
+      backgroundColor: AppTheme.bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFCF7F2),
+        backgroundColor: AppTheme.bg,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.orange),
+        iconTheme: IconThemeData(color: AppTheme.primary),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(widget.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    color: Color(0xFF7C2D12), fontSize: 14)),
+                style: TextStyle(
+                    color: AppTheme.ink, fontSize: 14)),
             const Text('Word 文字预览',
                 style: TextStyle(color: Colors.grey, fontSize: 11)),
           ],
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Colors.orange))
+          ? Center(child: CircularProgressIndicator(color: AppTheme.primary))
           : (_error != null
               ? Padding(
                   padding: const EdgeInsets.all(24),

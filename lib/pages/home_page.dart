@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+
+import '../theme.dart';
 import 'package:intl/intl.dart';
 
 import '../data.dart';
@@ -117,9 +119,9 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFCF7F2),
+      backgroundColor: AppTheme.bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFCF7F2),
+        backgroundColor: AppTheme.bg,
         elevation: 0,
         centerTitle: true,
         title: GestureDetector(
@@ -127,7 +129,7 @@ class HomePage extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             decoration: BoxDecoration(
-              color: const Color(0xFFFDE6D8),
+              color: AppTheme.primarySoft,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
@@ -135,8 +137,8 @@ class HomePage extends StatelessWidget {
               children: [
                 Text(
                   _dateLabel,
-                  style: const TextStyle(
-                    color: Color(0xFFB45309),
+                  style: TextStyle(
+                    color: AppTheme.primary,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -145,20 +147,20 @@ class HomePage extends StatelessWidget {
                 Icon(
                   Icons.keyboard_arrow_down,
                   size: 16,
-                  color: Colors.orange.shade700,
+                  color: AppTheme.primary,
                 ),
               ],
             ),
           ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.chevron_left, color: Colors.orange),
+          icon: Icon(Icons.chevron_left, color: AppTheme.primary),
           onPressed: onPrevDate,
           tooltip: '前一天',
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.chevron_right, color: Colors.orange),
+            icon: Icon(Icons.chevron_right, color: AppTheme.primary),
             onPressed: onNextDate,
             tooltip: '后一天',
           ),
@@ -185,7 +187,7 @@ class HomePage extends StatelessWidget {
               },
             ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.orange,
+        backgroundColor: AppTheme.primary,
         onPressed: onAdd,
         child: const Icon(Icons.add, color: Colors.white),
       ),
@@ -197,7 +199,7 @@ class HomePage extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.event_note, size: 64, color: Colors.orange.shade200),
+          Icon(Icons.event_note, size: 64, color: AppTheme.primaryLight),
           const SizedBox(height: 12),
           Text(
             '${DateFormat('M月d日').format(date)} 还没有记录',
@@ -217,14 +219,14 @@ class HomePage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
       decoration: BoxDecoration(
-        color: const Color(0xFFFDE6D8),
+        color: AppTheme.primarySoft,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
         item.dateTag,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 10,
-          color: Color(0xFFB45309),
+          color: AppTheme.primary,
           fontWeight: FontWeight.bold,
         ),
       ),
@@ -240,10 +242,10 @@ class HomePage extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFFAE8DC)),
+          border: Border.all(color: AppTheme.primarySoft),
           boxShadow: [
             BoxShadow(
-              color: Colors.orange.withOpacity(0.05),
+              color: AppTheme.primary.withValues(alpha: 0.05),
               blurRadius: 5,
               offset: const Offset(0, 2),
             ),
@@ -263,7 +265,7 @@ class HomePage extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                       color: item.isCompleted
                           ? Colors.grey
-                          : const Color(0xFF7C2D12),
+                          : AppTheme.ink,
                       decoration: item.isCompleted
                           ? TextDecoration.lineThrough
                           : null,
@@ -282,16 +284,16 @@ class HomePage extends StatelessWidget {
                     height: 26,
                     decoration: BoxDecoration(
                       color: item.isCompleted
-                          ? Colors.orange.withOpacity(0.1)
+                          ? AppTheme.primary.withValues(alpha: 0.1)
                           : Colors.white,
                       border: Border.all(
-                        color: Colors.orange.shade300,
+                        color: AppTheme.primaryLight,
                         width: 2,
                       ),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: item.isCompleted
-                        ? const Icon(Icons.check, size: 16, color: Colors.orange)
+                        ? Icon(Icons.check, size: 16, color: AppTheme.primary)
                         : null,
                   ),
                 ),
@@ -329,9 +331,9 @@ class HomePage extends StatelessWidget {
                       errorBuilder: (_, __, ___) => Container(
                         width: 56,
                         height: 56,
-                        color: Colors.orange.shade50,
-                        child: const Icon(Icons.broken_image,
-                            size: 20, color: Colors.orange),
+                        color: AppTheme.primarySoft,
+                        child: Icon(Icons.broken_image,
+                            size: 20, color: AppTheme.primary),
                       ),
                     ),
                   ),
@@ -344,18 +346,18 @@ class HomePage extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
+                  color: AppTheme.primarySoft,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.graphic_eq, size: 14, color: Colors.orange),
+                    Icon(Icons.graphic_eq, size: 14, color: AppTheme.primary),
                     const SizedBox(width: 4),
                     Text(
                       '语音 ${_formatSeconds(item.voiceSeconds)}',
-                      style: const TextStyle(
-                          fontSize: 11, color: Color(0xFFB45309)),
+                      style: TextStyle(
+                          fontSize: 11, color: AppTheme.primary),
                     ),
                   ],
                 ),
@@ -367,18 +369,18 @@ class HomePage extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
+                  color: AppTheme.primarySoft,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.movie, size: 14, color: Colors.orange),
+                    Icon(Icons.movie, size: 14, color: AppTheme.primary),
                     const SizedBox(width: 4),
                     Text(
                       '视频 ${item.videos.length}',
-                      style: const TextStyle(
-                          fontSize: 11, color: Color(0xFFB45309)),
+                      style: TextStyle(
+                          fontSize: 11, color: AppTheme.primary),
                     ),
                   ],
                 ),
@@ -390,18 +392,18 @@ class HomePage extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
+                  color: AppTheme.primarySoft,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.attach_file, size: 14, color: Colors.orange),
+                    Icon(Icons.attach_file, size: 14, color: AppTheme.primary),
                     const SizedBox(width: 4),
                     Text(
                       '附件 ${item.attachments.length}',
-                      style: const TextStyle(
-                          fontSize: 11, color: Color(0xFFB45309)),
+                      style: TextStyle(
+                          fontSize: 11, color: AppTheme.primary),
                     ),
                   ],
                 ),
@@ -421,23 +423,23 @@ class HomePage extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.orange.shade50,
+                          color: AppTheme.primarySoft,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.place,
-                                size: 13, color: Colors.orange),
+                            Icon(Icons.place,
+                                size: 13, color: AppTheme.primary),
                             const SizedBox(width: 2),
                             Text(
                               item.locationName,
-                              style: const TextStyle(
-                                  fontSize: 11, color: Color(0xFFB45309)),
+                              style: TextStyle(
+                                  fontSize: 11, color: AppTheme.primary),
                             ),
                             const SizedBox(width: 2),
-                            const Icon(Icons.navigation,
-                                size: 12, color: Color(0xFFB45309)),
+                            Icon(Icons.navigation,
+                                size: 12, color: AppTheme.primary),
                           ],
                         ),
                       ),
@@ -447,18 +449,18 @@ class HomePage extends StatelessWidget {
                       onTap: () => _editLocation(context, item),
                       child: Container(
                         padding: const EdgeInsets.all(4),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.place_outlined,
-                                size: 18, color: Colors.orange),
+                                size: 18, color: AppTheme.primary),
                             Text(
                               '位置',
                               style: TextStyle(
-                                  fontSize: 11, color: Colors.orange),
+                                  fontSize: 11, color: AppTheme.primary),
                             ),
                             Icon(Icons.navigation_outlined,
-                                size: 16, color: Colors.orange),
+                                size: 16, color: AppTheme.primary),
                           ],
                         ),
                       ),
@@ -506,21 +508,21 @@ class HomePage extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
               child: Text(
                 '给「${item.title}」添加位置',
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF7C2D12),
+                  color: AppTheme.ink,
                 ),
               ),
             ),
             ListTile(
-              leading: const Icon(Icons.my_location, color: Colors.orange),
+              leading: Icon(Icons.my_location, color: AppTheme.primary),
               title: const Text('自动获取当前位置'),
               subtitle: const Text('需要允许定位权限'),
               onTap: () => Navigator.pop(context, 'auto'),
             ),
             ListTile(
-              leading: const Icon(Icons.edit_location_alt_outlined,
-                  color: Colors.orange),
+              leading: Icon(Icons.edit_location_alt_outlined,
+                  color: AppTheme.primary),
               title: const Text('手动填写省 / 市'),
               onTap: () => Navigator.pop(context, 'manual'),
             ),
@@ -618,14 +620,14 @@ class HomePage extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
               child: Text(
                 item.title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF7C2D12),
+                  color: AppTheme.ink,
                 ),
               ),
             ),
             ListTile(
-              leading: const Icon(Icons.edit_outlined, color: Colors.orange),
+              leading: Icon(Icons.edit_outlined, color: AppTheme.primary),
               title: const Text('编辑记录'),
               onTap: () => Navigator.pop(context, 'edit'),
             ),

@@ -7,10 +7,13 @@ import 'pages/home_page.dart';
 import 'pages/record_edit_page.dart';
 import 'pages/search_page.dart';
 import 'pages/settings_page.dart';
+import 'theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await RecordStore.init(); // 初始化 Hive 本地存储
+  // 读取上次选的配色
+  AppTheme.apply(RecordStore.getTextSetting('palette', 'wood'));
   runApp(const TimeLineApp());
 }
 
@@ -30,10 +33,10 @@ class TimeLineApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       theme: ThemeData(
-        scaffoldBackgroundColor: const Color(0xFFFCF7F2),
+        scaffoldBackgroundColor: AppTheme.bg,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.orange,
-          primary: Colors.orange,
+          seedColor: AppTheme.primary,
+          primary: AppTheme.primary,
         ),
         fontFamily: 'Roboto',
       ),
@@ -59,6 +62,7 @@ class _MainContainerState extends State<MainContainer> {
   double _fontSize = 14;
   double _lineSpacing = 4;
   double _cardSpacing = 12;
+  String _paletteId = 'wood';
 
   @override
   void initState() {
@@ -66,7 +70,17 @@ class _MainContainerState extends State<MainContainer> {
     _fontSize = RecordStore.getSetting('fontSize', 14);
     _lineSpacing = RecordStore.getSetting('lineSpacing', 4);
     _cardSpacing = RecordStore.getSetting('cardSpacing', 12);
+    _paletteId = RecordStore.getTextSetting('palette', 'wood');
+    AppTheme.apply(_paletteId);
     _reload();
+  }
+
+  void _onPaletteChanged(String id) {
+    setState(() {
+      _paletteId = id;
+      AppTheme.apply(id);
+    });
+    RecordStore.setTextSetting('palette', id);
   }
 
   void _reload() {
@@ -192,22 +206,35 @@ class _MainContainerState extends State<MainContainer> {
         onChanged: _onSettingsChanged,
         onClearAll: _clearAll,
         onImportDone: () async => _reload(),
+        paletteId: _paletteId,
+        onPaletteChanged: _onPaletteChanged,
       ),
     ];
 
-    return Scaffold(
-      body: pages[_tab],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _tab,
-        selectedItemColor: Colors.orange[700],
-        unselectedItemColor: Colors.grey,
-        backgroundColor: Colors.white,
-        onTap: (i) => setState(() => _tab = i),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: '首页'),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: '记录'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: '设置'),
-        ],
+    return Theme(
+      data: ThemeData(
+        scaffoldBackgroundColor: AppTheme.bg,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppTheme.primary,
+          primary: AppTheme.primary,
+        ),
+        fontFamily: 'Roboto',
+      ),
+      child: Scaffold(
+        backgroundColor: AppTheme.bg,
+        body: pages[_tab],
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: _tab,
+          selectedItemColor: AppTheme.primary,
+          unselectedItemColor: Colors.grey,
+          backgroundColor: AppTheme.card,
+          onTap: (i) => setState(() => _tab = i),
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.home), label: '首页'),
+            BottomNavigationBarItem(icon: Icon(Icons.search), label: '记录'),
+            BottomNavigationBarItem(icon: Icon(Icons.settings), label: '设置'),
+          ],
+        ),
       ),
     );
   }

@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../theme.dart';
+
 import '../file_native.dart';
 
 /// PDF 预览：用系统自带的 PdfRenderer 逐页渲染成图片显示
@@ -39,9 +41,9 @@ class _PdfPreviewPageState extends State<PdfPreviewPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF3A3A3A),
+      backgroundColor: AppTheme.body,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF3A3A3A),
+        backgroundColor: AppTheme.body,
         iconTheme: const IconThemeData(color: Colors.white),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -57,7 +59,7 @@ class _PdfPreviewPageState extends State<PdfPreviewPage> {
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Colors.orange))
+          ? Center(child: CircularProgressIndicator(color: AppTheme.primary))
           : (_error != null
               ? Center(
                   child: Padding(
@@ -105,12 +107,12 @@ class _PageView extends StatelessWidget {
                 return Container(
                   height: width * 1.2,
                   color: Colors.white24,
-                  child: const Center(
+                  child: Center(
                     child: SizedBox(
                       width: 24,
                       height: 24,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.orange),
+                          strokeWidth: 2, color: AppTheme.primary),
                     ),
                   ),
                 );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../backup.dart';
+import '../theme.dart';
 
 /// 排版设置页
 class SettingsPage extends StatelessWidget {
@@ -11,6 +12,8 @@ class SettingsPage extends StatelessWidget {
       onChanged;
   final Future<void> Function() onClearAll;
   final Future<void> Function()? onImportDone;
+  final String paletteId;
+  final void Function(String id) onPaletteChanged;
 
   const SettingsPage({
     super.key,
@@ -20,23 +23,27 @@ class SettingsPage extends StatelessWidget {
     required this.onChanged,
     required this.onClearAll,
     this.onImportDone,
+    required this.paletteId,
+    required this.onPaletteChanged,
   });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFCF7F2),
+      backgroundColor: AppTheme.bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFCF7F2),
+        backgroundColor: AppTheme.bg,
         elevation: 0,
-        title: const Text(
+        title: Text(
           '排版设置',
-          style: TextStyle(color: Color(0xFF7C2D12)),
+          style: TextStyle(color: AppTheme.ink),
         ),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: [
+          _paletteCard(),
+          const SizedBox(height: 12),
           _sliderCard(
             title: '字体大小',
             value: fontSize,
@@ -72,8 +79,8 @@ class SettingsPage extends StatelessWidget {
             child: Column(
               children: [
                 ListTile(
-                  leading: const Icon(Icons.upload_file,
-                      color: Color(0xFF7C2D12)),
+                  leading: Icon(Icons.upload_file,
+                      color: AppTheme.ink),
                   title: const Text('导出数据'),
                   subtitle: const Text('生成一个 .zip 备份，可保存到手机的文件管理',
                       style: TextStyle(fontSize: 12)),
@@ -81,8 +88,8 @@ class SettingsPage extends StatelessWidget {
                 ),
                 const Divider(height: 1, indent: 16, endIndent: 16),
                 ListTile(
-                  leading: const Icon(Icons.settings_backup_restore,
-                      color: Color(0xFF7C2D12)),
+                  leading: Icon(Icons.settings_backup_restore,
+                      color: AppTheme.ink),
                   title: const Text('导入数据'),
                   subtitle: const Text('选择备份 .zip，恢复记录和图片/视频/附件',
                       style: TextStyle(fontSize: 12)),
@@ -145,6 +152,94 @@ class SettingsPage extends StatelessWidget {
     }
   }
 
+  /// 配色主题选择
+  Widget _paletteCard() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      decoration: BoxDecoration(
+        color: AppTheme.card,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                '配色主题',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold, color: AppTheme.ink),
+              ),
+              const Spacer(),
+              const Text('点一下立即切换',
+                  style: TextStyle(fontSize: 11, color: Colors.grey)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 16,
+            runSpacing: 14,
+            children: kPalettes.map((p) {
+              final selected = p.id == paletteId;
+              return GestureDetector(
+                onTap: () => onPaletteChanged(p.id),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        color: p.bg,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: selected
+                              ? p.primary
+                              : Colors.grey.withValues(alpha: 0.35),
+                          width: selected ? 2.5 : 1,
+                        ),
+                      ),
+                      child: Center(
+                        child: Container(
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            color: p.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: selected
+                              ? Icon(Icons.check,
+                                  size: 12, color: p.card)
+                              : null,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      p.name,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: selected ? p.primary : AppTheme.body,
+                        fontWeight:
+                            selected ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            kPalettes.firstWhere((p) => p.id == paletteId,
+                    orElse: () => kPalettes.first)
+                .desc,
+            style: const TextStyle(fontSize: 11, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _sliderCard({
     required String title,
     required double value,
@@ -173,7 +268,7 @@ class SettingsPage extends StatelessWidget {
               const Spacer(),
               Text(
                 value.toStringAsFixed(0),
-                style: const TextStyle(color: Colors.orange, fontSize: 13),
+                style: TextStyle(color: AppTheme.primary, fontSize: 13),
               ),
             ],
           ),
@@ -181,7 +276,7 @@ class SettingsPage extends StatelessWidget {
             value: value.clamp(min, max),
             min: min,
             max: max,
-            activeColor: Colors.orange,
+            activeColor: AppTheme.primary,
             divisions: (max - min).round(),
             label: value.toStringAsFixed(0),
             onChanged: onChanged,

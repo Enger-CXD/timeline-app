@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+
+import '../theme.dart';
 import 'package:video_player/video_player.dart';
 
 /// 全屏视频播放页（支持播放/暂停、拖动进度）
@@ -73,7 +75,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                 ),
               )
             : (c == null || !_ready)
-                ? const CircularProgressIndicator(color: Colors.orange)
+                ? CircularProgressIndicator(color: AppTheme.primary)
                 : Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -87,8 +89,8 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                       VideoProgressIndicator(
                         c,
                         allowScrubbing: true,
-                        colors: const VideoProgressColors(
-                          playedColor: Colors.orange,
+                        colors: VideoProgressColors(
+                          playedColor: AppTheme.primary,
                           bufferedColor: Colors.white24,
                           backgroundColor: Colors.white12,
                         ),
@@ -113,7 +115,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                                   ? Icons.pause_circle_filled
                                   : Icons.play_circle_filled,
                               size: 44,
-                              color: Colors.orange,
+                              color: AppTheme.primary,
                             ),
                           ),
                           const SizedBox(width: 12),

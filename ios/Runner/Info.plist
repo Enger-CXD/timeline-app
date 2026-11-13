@@ -5,7 +5,13 @@
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
-	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<string>zh_CN</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>zh_CN</string>
+		<string>zh-Hans</string>
+		<string>en</string>
+	</array>
 	<key>CFBundleDisplayName</key>
 	<string>时间轴记录</string>
 	<key>CFBundleExecutable</key>
@@ -28,8 +34,12 @@
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>需要访问相册，用来给记录添加图片和视频</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>需要保存拍摄的照片和视频到相册</string>
+	<key>NSCameraUsageDescription</key>
+	<string>需要使用相机，用来直接拍照和拍摄视频添加到记录</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>需要使用麦克风，用来给记录录制语音</string>
+	<string>需要使用麦克风，用来给记录录制语音和拍摄视频时的声音</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>需要使用定位，用来给记录标注所在城市并支持导航</string>
 	<key>LSApplicationQueriesSchemes</key>
