@@ -45,6 +45,9 @@ class _RecordEditPageState extends State<RecordEditPage> {
   int _recordSeconds = 0;
   Timer? _timer;
 
+  /// 当前记录所属日期（决定文件归到哪个日期文件夹）
+  String get _dateStr => DateFormat('yyyy-MM-dd').format(_date);
+
   @override
   void initState() {
     super.initState();
@@ -91,7 +94,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
       if (files.isEmpty) return;
       final imported = <String>[];
       for (final f in files) {
-        imported.add(await RecordStore.importImage(f.path));
+        imported.add(await RecordStore.importImage(f.path, date: _dateStr));
       }
       setState(() => _images.addAll(imported));
     } catch (e) {
@@ -109,7 +112,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
     try {
       final file = await _picker.pickVideo(source: ImageSource.gallery);
       if (file == null) return;
-      final imported = await RecordStore.importVideo(file.path);
+      final imported = await RecordStore.importVideo(file.path, date: _dateStr);
       setState(() => _videos.add(imported));
     } catch (e) {
       _toast('选择视频失败：$e');
@@ -137,7 +140,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
         final ext = f.name.contains('.')
             ? f.name.substring(f.name.lastIndexOf('.'))
             : '';
-        final newPath = await RecordStore.importFile(f.path!, ext: ext);
+        final newPath = await RecordStore.importFile(f.path!, ext: ext, name: f.name, date: _dateStr);
         added.add(RecordAttachment(name: f.name, path: newPath, kind: kind));
       }
       if (added.isEmpty) {
@@ -167,7 +170,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
         _toast('没有麦克风权限，请在系统设置中允许');
         return;
       }
-      final path = await RecordStore.newAudioPath();
+      final path = await RecordStore.newAudioPath(date: _dateStr);
       await _recorder.start(
         const RecordConfig(encoder: AudioEncoder.aacLc),
         path: path,

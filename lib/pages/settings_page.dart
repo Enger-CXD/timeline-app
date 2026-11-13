@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../data.dart';
+
 /// 排版设置页
 class SettingsPage extends StatelessWidget {
   final double fontSize;
@@ -74,9 +76,41 @@ class SettingsPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '存储位置',
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF7C2D12)),
+                ),
+                const SizedBox(height: 8),
+                SelectableText(
+                  RecordStore.mediaRoot,
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '文件按「日期 / 图片、视频、录音、附件」自动分文件夹保存，'
+                  '每天还会生成一个 记录.json。',
+                  style: TextStyle(
+                      fontSize: 11, color: Colors.grey.shade600, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
           const Center(
             child: Text(
-              '时间轴记录 · 数据保存在本机（Hive）',
+              '时间轴记录 · 记录内容存在本机 Hive 数据库，多媒体文件存在上面这个目录',
               style: TextStyle(fontSize: 11, color: Colors.grey),
             ),
           ),
