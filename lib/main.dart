@@ -191,6 +191,7 @@ class _MainContainerState extends State<MainContainer> {
         cardSpacing: _cardSpacing,
         onChanged: _onSettingsChanged,
         onClearAll: _clearAll,
+        onImportDone: () async => _reload(),
       ),
     ];
 

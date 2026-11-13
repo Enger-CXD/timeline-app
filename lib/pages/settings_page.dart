@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../data.dart';
+import '../backup.dart';
 
 /// 排版设置页
 class SettingsPage extends StatelessWidget {
@@ -10,6 +10,7 @@ class SettingsPage extends StatelessWidget {
   final Function(double fontSize, double lineSpacing, double cardSpacing)
       onChanged;
   final Future<void> Function() onClearAll;
+  final Future<void> Function()? onImportDone;
 
   const SettingsPage({
     super.key,
@@ -18,6 +19,7 @@ class SettingsPage extends StatelessWidget {
     required this.cardSpacing,
     required this.onChanged,
     required this.onClearAll,
+    this.onImportDone,
   });
 
   @override
@@ -67,6 +69,34 @@ class SettingsPage extends StatelessWidget {
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
             ),
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.upload_file,
+                      color: Color(0xFF7C2D12)),
+                  title: const Text('导出数据'),
+                  subtitle: const Text('生成一个 .zip 备份，可保存到手机的文件管理',
+                      style: TextStyle(fontSize: 12)),
+                  onTap: () => _export(context),
+                ),
+                const Divider(height: 1, indent: 16, endIndent: 16),
+                ListTile(
+                  leading: const Icon(Icons.settings_backup_restore,
+                      color: Color(0xFF7C2D12)),
+                  title: const Text('导入数据'),
+                  subtitle: const Text('选择备份 .zip，恢复记录和图片/视频/附件',
+                      style: TextStyle(fontSize: 12)),
+                  onTap: () => _import(context),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: ListTile(
               leading: const Icon(Icons.delete_sweep, color: Colors.redAccent),
               title: const Text('清空全部记录'),
@@ -76,47 +106,43 @@ class SettingsPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '存储位置',
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF7C2D12)),
-                ),
-                const SizedBox(height: 8),
-                SelectableText(
-                  RecordStore.mediaRoot,
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '文件按「日期 / 图片、视频、录音、附件」自动分文件夹保存，'
-                  '每天还会生成一个 记录.json。',
-                  style: TextStyle(
-                      fontSize: 11, color: Colors.grey.shade600, height: 1.4),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
           const Center(
             child: Text(
-              '时间轴记录 · 记录内容存在本机 Hive 数据库，多媒体文件存在上面这个目录',
+              '时间轴记录 · 数据保存在本机（Hive）',
               style: TextStyle(fontSize: 11, color: Colors.grey),
             ),
           ),
         ],
       ),
     );
+  }
+
+  /// 导出：生成备份并调起系统分享/存储面板
+  Future<void> _export(BuildContext context) async {
+    try {
+      await BackupService.exportAndShare(context);
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('导出失败：$e')));
+    }
+  }
+
+  /// 导入：选 zip → 恢复记录与文件
+  Future<void> _import(BuildContext context) async {
+    try {
+      final result = await BackupService.importFromPicker();
+      if (result.cancelled) return;
+      await onImportDone?.call();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('导入完成：${result.imported} 条记录、${result.media} 个文件'),
+      ));
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('导入失败：$e')));
+    }
   }
 
   Widget _sliderCard({

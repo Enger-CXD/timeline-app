@@ -160,76 +160,20 @@ class RecordStore {
     _records = await Hive.openBox<String>(_recordBoxName);
     _settings = await Hive.openBox(_settingBoxName);
     final docs = await getApplicationDocumentsDirectory();
-
-    // Android 上优先用「外部私有目录」：/storage/emulated/0/Android/data/<包名>/files
-    // 这样在手机文件管理器 / 连电脑 USB 时能看到，方便用户自己找文件。
-    var base = docs.path;
-    if (Platform.isAndroid) {
-      try {
-        final ext = await getExternalStorageDirectory();
-        if (ext != null && ext.path.isNotEmpty) base = ext.path;
-      } catch (_) {}
-    }
-    _filesDir = base;
-
+    _filesDir = docs.path;
     _ready = true;
     await _seedIfEmpty();
-
-    // 老版本把文件放在内部存储的 Documents 下，若和当前目录不同，先搬过来
-    try {
-      await _absorbLegacyBase(docs.path);
-    } catch (_) {}
-    // 把老版本扁平目录的文件搬进「按日期」的目录结构（只需生效一次）
-    try {
-      await migrateLegacyMedia();
-    } catch (_) {}
-  }
-
-  /// 把旧根目录下的 images/audio/videos/files 搬到新根目录
-  static Future<void> _absorbLegacyBase(String oldBase) async {
-    if (oldBase == _filesDir || oldBase.isEmpty) return;
-    for (final sub in ['images', 'audio', 'videos', 'files']) {
-      final legacy = Directory('$oldBase/$sub');
-      if (!await legacy.exists()) continue;
-      final target = Directory('$_filesDir/$sub');
-      if (!await target.exists()) await target.create(recursive: true);
-      await for (final entity in legacy.list()) {
-        if (entity is! File) continue;
-        try {
-          final name = entity.uri.pathSegments.last;
-          await entity.copy('${target.path}/$name');
-          await entity.delete();
-        } catch (_) {}
-      }
-    }
   }
 
   static bool get ready => _ready;
 
-  /// 应用根目录（Android: /storage/emulated/0/Android/data/<包名>/files；iOS: 应用沙盒 Documents）
+  /// 应用私有目录：图片放在 images/，录音放在 audio/
   static String get filesDir => _filesDir;
 
-  /// 多媒体归档根目录：<根目录>/时间轴记录
-  static const String mediaFolderName = '时间轴记录';
-  static String get mediaRoot => '$_filesDir/$mediaFolderName';
-
-  /// 年-月-日，例如 2026-11-13
-  static String dayName(String date) =>
-      date.trim().isEmpty ? DateFormat('yyyy-MM-dd').format(DateTime.now()) : date.trim();
-
-  /// 某一天的目录：<根目录>/时间轴记录/2026-11-13
-  static Directory dayDir(String date) =>
-      Directory('$mediaRoot/${dayName(date)}');
-
-  /// 某天的分类子目录（中文命名，方便在文件管理器里一眼看懂）
-  static Directory imagesDirOf(String date) =>
-      Directory('${dayDir(date).path}/图片');
-  static Directory videosDirOf(String date) =>
-      Directory('${dayDir(date).path}/视频');
-  static Directory audioDirOf(String date) =>
-      Directory('${dayDir(date).path}/录音');
-  static Directory filesDirOf(String date) =>
-      Directory('${dayDir(date).path}/附件');
+  static Directory get imageDir => Directory('$_filesDir/images');
+  static Directory get audioDir => Directory('$_filesDir/audio');
+  static Directory get videoDir => Directory('$_filesDir/videos');
+  static Directory get fileDir => Directory('$_filesDir/files');
 
   static Future<void> _seedIfEmpty() async {
     if (_records.isNotEmpty) return;
@@ -273,57 +217,6 @@ class RecordStore {
 
   static Future<void> save(RecordItem item) async {
     await _records.put(item.id, jsonEncode(item.toMap()));
-    // 每次保存后，重写当天的 记录.json，让本地文件夹里也能看到结构化数据
-    await syncDayIndex(item.date);
-  }
-
-  /// 把某一天的所有记录导出成 <日期>/记录.json，便于在文件管理器里查看
-  static Future<void> syncDayIndex(String date) async {
-    try {
-      final dir = dayDir(date);
-      if (!await dir.exists()) await dir.create(recursive: true);
-      final items = byDate(dayName(date))
-          .map((e) => {
-                'id': e.id,
-                'time': e.time,
-                'title': e.title,
-                'content': e.content,
-                'isCompleted': e.isCompleted,
-                'images': e.images.map((p) => _relativeTo(dir, p)).toList(),
-                'videos': e.videos.map((p) => _relativeTo(dir, p)).toList(),
-                'voice': e.voicePath.isEmpty ? '' : _relativeTo(dir, e.voicePath),
-                'voiceSeconds': e.voiceSeconds,
-                'attachments': e.attachments
-                    .map((a) => {
-                          'name': a.name,
-                          'kind': a.kind,
-                          'file': _relativeTo(dir, a.path),
-                        })
-                    .toList(),
-                'locationName': e.locationName,
-                'locationLat': e.locationLat,
-                'locationLng': e.locationLng,
-              })
-          .toList();
-      final payload = {
-        'date': dayName(date),
-        'count': items.length,
-        'updatedAt': DateTime.now().toIso8601String(),
-        'records': items,
-      };
-      final file = File('${dir.path}/记录.json');
-      await file.writeAsString(
-        const JsonEncoder.withIndent('  ').convert(payload),
-      );
-    } catch (_) {
-      // 导出失败不影响主流程
-    }
-  }
-
-  /// 把绝对路径换成相对日期目录的路径，例如 图片/123.jpg
-  static String _relativeTo(Directory dayDirectory, String path) {
-    final prefix = '${dayDirectory.path}/';
-    return path.startsWith(prefix) ? path.substring(prefix.length) : path;
   }
 
   static Future<void> delete(RecordItem item) async {
@@ -373,22 +266,13 @@ class RecordStore {
 
   // ---------------- 文件处理 ----------------
 
-  /// 生成便于阅读的文件名，例如 123045_351.jpg
-  static String _newFileName(String ext) {
-    final now = DateTime.now();
-    final hms = DateFormat('HHmmss').format(now);
-    return '${hms}_${now.millisecond}$ext';
-  }
-
-  static Future<Directory> _ensure(Directory dir) async {
+  /// 把用户选择的图片复制到应用私有目录，返回新路径
+  static Future<String> importImage(String sourcePath) async {
+    final dir = imageDir;
     if (!await dir.exists()) await dir.create(recursive: true);
-    return dir;
-  }
-
-  /// 把用户选择的图片复制到 <日期>/图片 目录，返回新绝对路径
-  static Future<String> importImage(String sourcePath, {String date = ''}) async {
-    final dir = await _ensure(imagesDirOf(date));
-    final target = '${dir.path}/${_newFileName(_extensionOf(sourcePath))}';
+    final ext = _extensionOf(sourcePath);
+    final target =
+        '${dir.path}/${DateTime.now().microsecondsSinceEpoch}$ext';
     await File(sourcePath).copy(target);
     return target;
   }
@@ -400,25 +284,23 @@ class RecordStore {
     return '.jpg';
   }
 
-  /// 把用户选择的视频复制到 <日期>/视频 目录，返回新绝对路径
-  static Future<String> importVideo(String sourcePath, {String date = ''}) async {
-    final dir = await _ensure(videosDirOf(date));
-    final target = '${dir.path}/${_newFileName(_extensionOf(sourcePath))}';
+  /// 把用户选择的视频复制到应用私有目录，返回新路径
+  static Future<String> importVideo(String sourcePath) async {
+    final dir = videoDir;
+    if (!await dir.exists()) await dir.create(recursive: true);
+    final ext = _extensionOf(sourcePath);
+    final target = '${dir.path}/${DateTime.now().microsecondsSinceEpoch}$ext';
     await File(sourcePath).copy(target);
     return target;
   }
 
-  /// 把用户选择的 PDF / Word 复制到 <日期>/附件 目录，返回新绝对路径
-  static Future<String> importFile(String sourcePath,
-      {String ext = '', String name = '', String date = ''}) async {
-    final dir = await _ensure(filesDirOf(date));
+  /// 把用户选择的 PDF / Word 文件复制到应用私有目录，返回新路径
+  static Future<String> importFile(String sourcePath, {String ext = ''}) async {
+    final dir = fileDir;
+    if (!await dir.exists()) await dir.create(recursive: true);
     final extension = ext.isNotEmpty ? ext : _extensionOf(sourcePath);
-    final baseName = name.isNotEmpty ? name : _newFileName(extension);
-    var target = '${dir.path}/$baseName';
-    // 同名文件不覆盖，加时间前缀
-    if (await File(target).exists()) {
-      target = '${dir.path}/${_newFileName(extension)}_$baseName';
-    }
+    final target =
+        '${dir.path}/${DateTime.now().microsecondsSinceEpoch}$extension';
     await File(sourcePath).copy(target);
     return target;
   }
@@ -432,103 +314,10 @@ class RecordStore {
     return 'other';
   }
 
-  /// 生成录音文件路径：<日期>/录音/123045_351.m4a
-  static Future<String> newAudioPath({String date = ''}) async {
-    final dir = await _ensure(audioDirOf(date));
-    return '${dir.path}/${_newFileName('.m4a')}';
-  }
-
-  // ---------------- 旧数据迁移 ----------------
-
-  /// 把老版本扁平目录（images/audio/videos/files）里的文件，
-  /// 按所属记录的日期搬进 时间轴记录/<日期>/<分类>/，并改写记录里的路径。
-  static Future<void> migrateLegacyMedia() async {
-    final legacyDirs = {
-      'images': '图片',
-      'videos': '视频',
-      'audio': '录音',
-      'files': '附件',
-    };
-    final anyExists = legacyDirs.keys
-        .any((k) => Directory('$_filesDir/$k').existsSync());
-    if (!anyExists && !File('$_filesDir/records_v1.hive').existsSync()) {
-      // 全新安装且无旧目录，无需迁移
-      if (!anyExists) return;
-    }
-
-    final items = all();
-    // 建立 旧路径 -> 记录 的映射
-    final owner = <String, RecordItem>{};
-    for (final it in items) {
-      for (final p in it.images) {
-        owner[p] = it;
-      }
-      for (final p in it.videos) {
-        owner[p] = it;
-      }
-      if (it.voicePath.isNotEmpty) owner[it.voicePath] = it;
-      for (final a in it.attachments) {
-        owner[a.path] = it;
-      }
-    }
-
-    var changed = false;
-    for (final entry in legacyDirs.entries) {
-      final legacy = Directory('$_filesDir/${entry.key}');
-      if (!await legacy.exists()) continue;
-      await for (final entity in legacy.list()) {
-        if (entity is! File) continue;
-        try {
-          final item = owner[entity.path];
-          final date = item?.date ?? dayName('');
-          final sub = entry.value;
-          final targetDir = await _ensure(Directory('${dayDir(date).path}/$sub'));
-          final fileName = entity.uri.pathSegments.last;
-          final targetPath = '${targetDir.path}/$fileName';
-          await entity.copy(targetPath);
-          await entity.delete();
-
-          if (item != null) {
-            if (entry.key == 'images') {
-              item.images = item.images
-                  .map((p) => p == entity.path ? targetPath : p)
-                  .toList();
-            } else if (entry.key == 'videos') {
-              item.videos = item.videos
-                  .map((p) => p == entity.path ? targetPath : p)
-                  .toList();
-            } else if (entry.key == 'audio') {
-              if (item.voicePath == entity.path) item.voicePath = targetPath;
-            } else {
-              item.attachments = item.attachments
-                  .map((a) => a.path == entity.path
-                      ? RecordAttachment(
-                          name: a.name, path: targetPath, kind: a.kind)
-                      : a)
-                  .toList();
-            }
-            changed = true;
-          }
-        } catch (_) {
-          // 单文件失败跳过
-        }
-      }
-      // 目录空了就删掉
-      try {
-        if (await legacy.exists() && await legacy.list().isEmpty) {
-          await legacy.delete(recursive: true);
-        }
-      } catch (_) {}
-    }
-
-    if (changed) {
-      for (final it in items) {
-        await _records.put(it.id, jsonEncode(it.toMap()));
-      }
-    }
-    // 为所有有记录的日期补齐 记录.json
-    for (final it in all()) {
-      await syncDayIndex(it.date);
-    }
+  /// 生成一个录音文件路径
+  static Future<String> newAudioPath() async {
+    final dir = audioDir;
+    if (!await dir.exists()) await dir.create(recursive: true);
+    return '${dir.path}/${DateTime.now().millisecondsSinceEpoch}.m4a';
   }
 }

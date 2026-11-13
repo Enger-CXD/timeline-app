@@ -48,6 +48,8 @@ dependencies:
   video_player: ">=2.9.0 <2.10.0" 
   # 选取任意文件（PDF / Word）
   file_picker: ^8.1.0
+  # 导出备份文件：调起系统分享面板，可存到「文件」App / 下载目录
+  share_plus: ^10.1.4
   # Word(.docx) 文本预览：解压 zip 读 document.xml
   archive: ^3.6.0
   # 日期格式化
