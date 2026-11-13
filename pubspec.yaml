@@ -45,7 +45,7 @@ dependencies:
   # 图片全屏查看：支持左右滑动翻页 + 双指缩放
   photo_view: ^0.15.0
   # 选取视频
-  video_player: ^2.9.0
+  video_player: ">=2.9.0 <2.10.0" 
   # 选取任意文件（PDF / Word）
   file_picker: ^8.1.0
   # Word(.docx) 文本预览：解压 zip 读 document.xml
