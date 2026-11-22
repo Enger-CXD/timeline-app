@@ -94,14 +94,17 @@ class _MainContainerState extends State<MainContainer> {
   List<RecordItem> get _todayRecords =>
       _all.where((e) => e.date == _dateKey).toList();
 
+  /// 所有有记录的日期，供月历打点
+  Set<String> get _markedDates => _all.map((e) => e.date).toSet();
+
+  void _setDate(DateTime d) {
+    setState(() => _date = DateTime(d.year, d.month, d.day));
+  }
+
   void _shiftDate(int days) {
     setState(() {
       _date = _date.add(Duration(days: days));
     });
-  }
-
-  void _backToToday() {
-    setState(() => _date = DateTime.now());
   }
 
   Future<void> _toggle(String id) async {
@@ -188,9 +191,10 @@ class _MainContainerState extends State<MainContainer> {
         fontSize: _fontSize,
         lineSpacing: _lineSpacing,
         cardSpacing: _cardSpacing,
+        markedDates: _markedDates,
         onPrevDate: () => _shiftDate(-1),
         onNextDate: () => _shiftDate(1),
-        onToday: _backToToday,
+        onPickDate: _setDate,
         onAdd: _openAdd,
         onToggle: _toggle,
         onEdit: _openEdit,
@@ -198,7 +202,18 @@ class _MainContainerState extends State<MainContainer> {
         onUpdate: _updateItem,
         onChanged: _reload,
       ),
-      SearchPage(records: _all, onChanged: _reload),
+      SearchPage(
+        records: _all,
+        fontSize: _fontSize,
+        lineSpacing: _lineSpacing,
+        cardSpacing: _cardSpacing,
+        onChanged: _reload,
+        onToggle: _toggle,
+        onEdit: _openEdit,
+        onDelete: _delete,
+        onUpdate: _updateItem,
+      ),
+
       SettingsPage(
         fontSize: _fontSize,
         lineSpacing: _lineSpacing,

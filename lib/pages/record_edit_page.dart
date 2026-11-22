@@ -13,6 +13,8 @@ import 'package:record/record.dart';
 import '../audio_native.dart';
 import '../data.dart';
 import '../file_native.dart';
+import '../record_actions.dart';
+import '../widgets/month_calendar_sheet.dart';
 
 /// 新建 / 编辑记录页
 class RecordEditPage extends StatefulWidget {
@@ -38,6 +40,12 @@ class _RecordEditPageState extends State<RecordEditPage> {
   late DateTime _date;
   late String _time;
 
+  /// 地点：新建记录时自动定位，也可以手动改
+  String _locationName = '';
+  double _locationLat = 0;
+  double _locationLng = 0;
+  bool _locating = false;
+
   final ImagePicker _picker = ImagePicker();
   final AudioRecorder _recorder = AudioRecorder();
   StreamSubscription<void>? _audioSub;
@@ -62,11 +70,16 @@ class _RecordEditPageState extends State<RecordEditPage> {
     if (e != null) {
       _date = DateTime.tryParse(e.date) ?? DateTime.now();
       _time = e.time;
+      _locationName = e.locationName;
+      _locationLat = e.locationLat;
+      _locationLng = e.locationLng;
     } else {
       _date = widget.initialDate ?? DateTime.now();
       final now = DateTime.now();
       _time =
           '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+      // 新建记录：进来就自动定位当前地址
+      _autoLocate();
     }
 
     _audioSub = NativeAudio.onCompleted.listen((_) {
@@ -293,13 +306,74 @@ class _RecordEditPageState extends State<RecordEditPage> {
   // ---------------- 日期 ----------------
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
+    final picked = await showMonthCalendar(
+      context,
       initialDate: _date,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
+      markedDates: RecordStore.all().map((e) => e.date).toSet(),
     );
     if (picked != null) setState(() => _date = picked);
+  }
+
+  // ---------------- 地点 ----------------
+
+  /// 新建记录时自动定位当前地址（拿不到就留着空，让用户点一下手填）
+  Future<void> _autoLocate() async {
+    if (_locating) return;
+    setState(() => _locating = true);
+    try {
+      final r = await FileNative.currentLocation();
+      if (!mounted) return;
+      final province = (r?['province'] ?? '').toString().trim();
+      final city = (r?['city'] ?? '').toString().trim();
+      final name = '$province$city'.trim();
+      setState(() {
+        _locating = false;
+        if (name.isNotEmpty) {
+          _locationName = name;
+          _locationLat = (r?['lat'] as num?)?.toDouble() ?? 0;
+          _locationLng = (r?['lng'] as num?)?.toDouble() ?? 0;
+        }
+      });
+      if (name.isEmpty) {
+        _toast('暂时拿不到位置，可点“地点”这一行手动填写');
+      }
+    } on PermissionNeeded {
+      if (!mounted) return;
+      setState(() => _locating = false);
+      _toast('没有定位权限：点“地点”这一行可以手动填写');
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _locating = false);
+    }
+  }
+
+  Future<void> _editLocation() async {
+    // 借一条临时记录走通用的改地址流程
+    final temp = RecordItem(
+      id: 'temp',
+      title: _titleController.text.trim().isEmpty
+          ? '新记录'
+          : _titleController.text.trim(),
+      content: '',
+      date: DateFormat('yyyy-MM-dd').format(_date),
+      time: _time,
+      locationName: _locationName,
+      locationLat: _locationLat,
+      locationLng: _locationLng,
+    );
+    final updated = await editLocationFlow(context, temp);
+    if (updated == null || !mounted) return;
+    setState(() {
+      _locationName = updated.locationName;
+      _locationLat = updated.locationLat;
+      _locationLng = updated.locationLng;
+    });
+  }
+
+  String get _locationLabel {
+    if (_locating) return '正在自动定位…';
+    if (_locationName.isEmpty) return '未获取位置，点击手动填写';
+    return _locationName;
   }
 
   // ---------------- 保存 ----------------
@@ -327,9 +401,9 @@ class _RecordEditPageState extends State<RecordEditPage> {
       voiceSeconds: _voiceSeconds,
       videos: _videos,
       attachments: _attachments,
-      locationName: widget.existing?.locationName ?? '',
-      locationLat: widget.existing?.locationLat ?? 0,
-      locationLng: widget.existing?.locationLng ?? 0,
+      locationName: _locationName,
+      locationLat: _locationLat,
+      locationLng: _locationLng,
     );
     Navigator.pop(context, item);
   }
@@ -410,6 +484,50 @@ class _RecordEditPageState extends State<RecordEditPage> {
                   ),
                   const Spacer(),
                   const Icon(Icons.edit, size: 16, color: Colors.grey),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // 地点（新建时自动定位，点一下可改）
+          InkWell(
+            onTap: _editLocation,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.place_outlined,
+                      size: 18, color: AppTheme.primary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _locationLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: _locationName.isEmpty && !_locating
+                            ? Colors.grey
+                            : AppTheme.ink,
+                      ),
+                    ),
+                  ),
+                  if (_locating)
+                    SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: AppTheme.primary),
+                    )
+                  else
+                    const Icon(Icons.edit, size: 16, color: Colors.grey),
                 ],
               ),
             ),

@@ -1,85 +1,28 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-
-import '../theme.dart';
 import 'package:intl/intl.dart';
 
 import '../data.dart';
 import '../file_native.dart';
+import '../record_actions.dart';
+import '../theme.dart';
+import '../widgets/month_calendar_sheet.dart';
+import '../widgets/record_card.dart';
 import 'detail_page.dart';
 
 /// 首页：按日期展示时间轴
-/// 手动填写省 / 市 的对话框（控制器交给 State 自己管理，避免提前 dispose 触发断言）
-class _ManualLocationDialog extends StatefulWidget {
-  const _ManualLocationDialog();
-
-  @override
-  State<_ManualLocationDialog> createState() => _ManualLocationDialogState();
-}
-
-class _ManualLocationDialogState extends State<_ManualLocationDialog> {
-  final _provinceCtrl = TextEditingController();
-  final _cityCtrl = TextEditingController();
-
-  @override
-  void dispose() {
-    _provinceCtrl.dispose();
-    _cityCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('手动填写位置'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _provinceCtrl,
-            decoration: const InputDecoration(
-              labelText: '省 / 直辖市',
-              hintText: '例如 湖北省',
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _cityCtrl,
-            decoration: const InputDecoration(
-              labelText: '市 / 区',
-              hintText: '例如 恩施市',
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('取消'),
-        ),
-        TextButton(
-          onPressed: () {
-            final name =
-                '${_provinceCtrl.text.trim()}${_cityCtrl.text.trim()}'.trim();
-            Navigator.pop(context, name);
-          },
-          child: const Text('保存'),
-        ),
-      ],
-    );
-  }
-}
-
 class HomePage extends StatelessWidget {
   final List<RecordItem> records;
   final DateTime date;
   final double fontSize;
   final double lineSpacing;
   final double cardSpacing;
+
+  /// 有记录的日期集合（yyyy-MM-dd），月历上打点用
+  final Set<String> markedDates;
+
   final VoidCallback onPrevDate;
   final VoidCallback onNextDate;
-  final VoidCallback onToday;
+  final ValueChanged<DateTime> onPickDate;
   final VoidCallback onAdd;
   final ValueChanged<String> onToggle;
   final Future<void> Function(BuildContext context, RecordItem item) onEdit;
@@ -94,9 +37,10 @@ class HomePage extends StatelessWidget {
     required this.fontSize,
     required this.lineSpacing,
     required this.cardSpacing,
+    required this.markedDates,
     required this.onPrevDate,
     required this.onNextDate,
-    required this.onToday,
+    required this.onPickDate,
     required this.onAdd,
     required this.onToggle,
     required this.onEdit,
@@ -125,7 +69,7 @@ class HomePage extends StatelessWidget {
         elevation: 0,
         centerTitle: true,
         title: GestureDetector(
-          onTap: onToday,
+          onTap: () => _openCalendar(context),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             decoration: BoxDecoration(
@@ -180,7 +124,16 @@ class HomePage extends StatelessWidget {
                     children: [
                       _buildTimeTag(item),
                       const SizedBox(height: 6),
-                      _buildCard(context, item),
+                      RecordCard(
+                        item: item,
+                        fontSize: fontSize,
+                        lineSpacing: lineSpacing,
+                        onTap: () => _openDetail(context, item),
+                        onToggle: () => onToggle(item.id),
+                        onLongPress: () => _showActions(context, item),
+                        onNavigate: () => _openNavigation(context, item),
+                        onEditLocation: () => _editLocation(context, item),
+                      ),
                     ],
                   ),
                 );
@@ -233,250 +186,14 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildCard(BuildContext context, RecordItem item) {
-    return GestureDetector(
-      onTap: () => _openDetail(context, item),
-      onLongPress: () => _showActions(context, item),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppTheme.primarySoft),
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.primary.withValues(alpha: 0.05),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
-                    item.title,
-                    style: TextStyle(
-                      fontSize: fontSize + 2,
-                      fontWeight: FontWeight.bold,
-                      color: item.isCompleted
-                          ? Colors.grey
-                          : AppTheme.ink,
-                      decoration: item.isCompleted
-                          ? TextDecoration.lineThrough
-                          : null,
-                    ),
-                  ),
-                ),
-                Text(
-                  item.time,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-                const SizedBox(width: 10),
-                GestureDetector(
-                  onTap: () => onToggle(item.id),
-                  child: Container(
-                    width: 26,
-                    height: 26,
-                    decoration: BoxDecoration(
-                      color: item.isCompleted
-                          ? AppTheme.primary.withValues(alpha: 0.1)
-                          : Colors.white,
-                      border: Border.all(
-                        color: AppTheme.primaryLight,
-                        width: 2,
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: item.isCompleted
-                        ? Icon(Icons.check, size: 16, color: AppTheme.primary)
-                        : null,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: lineSpacing),
-            if (item.content.trim().isNotEmpty)
-              Text(
-                item.content,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: fontSize,
-                  color: item.isCompleted ? Colors.grey[400] : Colors.grey[600],
-                  decoration:
-                      item.isCompleted ? TextDecoration.lineThrough : null,
-                  height: 1.3,
-                ),
-              ),
-            if (item.images.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              SizedBox(
-                height: 56,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: item.images.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 6),
-                  itemBuilder: (_, i) => ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.file(
-                      File(item.images[i]),
-                      width: 56,
-                      height: 56,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        width: 56,
-                        height: 56,
-                        color: AppTheme.primarySoft,
-                        child: Icon(Icons.broken_image,
-                            size: 20, color: AppTheme.primary),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-            if (item.voicePath.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: AppTheme.primarySoft,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.graphic_eq, size: 14, color: AppTheme.primary),
-                    const SizedBox(width: 4),
-                    Text(
-                      '语音 ${_formatSeconds(item.voiceSeconds)}',
-                      style: TextStyle(
-                          fontSize: 11, color: AppTheme.primary),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            if (item.videos.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: AppTheme.primarySoft,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.movie, size: 14, color: AppTheme.primary),
-                    const SizedBox(width: 4),
-                    Text(
-                      '视频 ${item.videos.length}',
-                      style: TextStyle(
-                          fontSize: 11, color: AppTheme.primary),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            if (item.attachments.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: AppTheme.primarySoft,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.attach_file, size: 14, color: AppTheme.primary),
-                    const SizedBox(width: 4),
-                    Text(
-                      '附件 ${item.attachments.length}',
-                      style: TextStyle(
-                          fontSize: 11, color: AppTheme.primary),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-
-            // 右下角：位置信息（未设置时是“添加”箭头，已设置后显示 省+市，点一下可导航）
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: item.hasLocation
-                  ? GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => _openNavigation(context, item),
-                      onLongPress: () => _editLocation(context, item),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primarySoft,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.place,
-                                size: 13, color: AppTheme.primary),
-                            const SizedBox(width: 2),
-                            Text(
-                              item.locationName,
-                              style: TextStyle(
-                                  fontSize: 11, color: AppTheme.primary),
-                            ),
-                            const SizedBox(width: 2),
-                            Icon(Icons.navigation,
-                                size: 12, color: AppTheme.primary),
-                          ],
-                        ),
-                      ),
-                    )
-                  : GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => _editLocation(context, item),
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.place_outlined,
-                                size: 18, color: AppTheme.primary),
-                            Text(
-                              '位置',
-                              style: TextStyle(
-                                  fontSize: 11, color: AppTheme.primary),
-                            ),
-                            Icon(Icons.navigation_outlined,
-                                size: 16, color: AppTheme.primary),
-                          ],
-                        ),
-                      ),
-                    ),
-            ),
-          ],
-        ),
-      ),
+  /// 点日期胶囊里的下箭头：弹出月历，左右滑动换月，单击选中某天
+  Future<void> _openCalendar(BuildContext context) async {
+    final picked = await showMonthCalendar(
+      context,
+      initialDate: date,
+      markedDates: markedDates,
     );
-  }
-
-  String _formatSeconds(int s) {
-    if (s <= 0) return '--';
-    final m = s ~/ 60;
-    final r = s % 60;
-    return m > 0 ? '$m分${r.toString().padLeft(2, '0')}秒' : '$r秒';
+    if (picked != null) onPickDate(picked);
   }
 
   void _openDetail(BuildContext context, RecordItem item) {
@@ -492,105 +209,10 @@ class HomePage extends StatelessWidget {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  /// 给某条记录补充位置信息（自动定位 / 手动填写 / 清除）
   Future<void> _editLocation(BuildContext context, RecordItem item) async {
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Text(
-                '给「${item.title}」添加位置',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.ink,
-                ),
-              ),
-            ),
-            ListTile(
-              leading: Icon(Icons.my_location, color: AppTheme.primary),
-              title: const Text('自动获取当前位置'),
-              subtitle: const Text('需要允许定位权限'),
-              onTap: () => Navigator.pop(context, 'auto'),
-            ),
-            ListTile(
-              leading: Icon(Icons.edit_location_alt_outlined,
-                  color: AppTheme.primary),
-              title: const Text('手动填写省 / 市'),
-              onTap: () => Navigator.pop(context, 'manual'),
-            ),
-            if (item.hasLocation)
-              ListTile(
-                leading:
-                    const Icon(Icons.location_off, color: Colors.redAccent),
-                title: const Text('清除位置',
-                    style: TextStyle(color: Colors.redAccent)),
-                onTap: () => Navigator.pop(context, 'clear'),
-              ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-    await Future<void>.delayed(Duration.zero);
-    if (!context.mounted || choice == null) return;
-
-    if (choice == 'clear') {
-      await onUpdate(item.copyWith(
-        locationName: '',
-        locationLat: 0,
-        locationLng: 0,
-      ));
-      return;
-    }
-
-    if (choice == 'auto') {
-      try {
-        final r = await FileNative.currentLocation();
-        if (r == null) {
-          _toast(context, '暂时拿不到位置，可改用手动填写');
-          return;
-        }
-        final province = (r['province'] ?? '').toString().trim();
-        final city = (r['city'] ?? '').toString().trim();
-        final lat = (r['lat'] as num?)?.toDouble() ?? 0;
-        final lng = (r['lng'] as num?)?.toDouble() ?? 0;
-        final name = '$province$city'.trim().isEmpty
-            ? '当前位置'
-            : '$province$city';
-        await onUpdate(item.copyWith(
-          locationName: name,
-          locationLat: lat,
-          locationLng: lng,
-        ));
-        if (context.mounted) _toast(context, '已添加位置：$name');
-      } catch (e) {
-        if (context.mounted) {
-          _toast(context, '定位失败：需要在系统弹窗里允许定位权限，然后再点一次箭头');
-        }
-      }
-      return;
-    }
-
-    // 手动填写
-    final name = await showDialog<String>(
-      context: context,
-      builder: (_) => const _ManualLocationDialog(),
-    );
-    if (name == null || name.isEmpty || !context.mounted) return;
-    await onUpdate(item.copyWith(
-      locationName: name,
-      locationLat: 0,
-      locationLng: 0,
-    ));
-    if (context.mounted) _toast(context, '已添加位置：$name');
+    final updated = await editLocationFlow(context, item);
+    if (updated == null) return;
+    await onUpdate(updated);
   }
 
   /// 点地点文字：跳转到导航 App
@@ -606,48 +228,12 @@ class HomePage extends StatelessWidget {
   }
 
   Future<void> _showActions(BuildContext context, RecordItem item) async {
-    final action = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Text(
-                item.title,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.ink,
-                ),
-              ),
-            ),
-            ListTile(
-              leading: Icon(Icons.edit_outlined, color: AppTheme.primary),
-              title: const Text('编辑记录'),
-              onTap: () => Navigator.pop(context, 'edit'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
-              title: const Text('删除记录',
-                  style: TextStyle(color: Colors.redAccent)),
-              onTap: () => Navigator.pop(context, 'delete'),
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-
-    // 异步弹窗关闭后再执行动作，避免 context 失效
-    await Future<void>.delayed(Duration.zero);
-    if (!context.mounted) return;
+    final action = await showRecordActions(context, item);
+    if (!context.mounted || action == null) return;
     if (action == 'edit') {
       await onEdit(context, item);
+    } else if (action == 'location') {
+      await _editLocation(context, item);
     } else if (action == 'delete') {
       await _confirmDelete(context, item);
     }
