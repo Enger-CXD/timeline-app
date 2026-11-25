@@ -27,7 +27,8 @@ class RecordEditPage extends StatefulWidget {
   State<RecordEditPage> createState() => _RecordEditPageState();
 }
 
-class _RecordEditPageState extends State<RecordEditPage> {
+class _RecordEditPageState extends State<RecordEditPage>
+    with WidgetsBindingObserver {
   late TextEditingController _titleController;
   late TextEditingController _contentController;
 
@@ -54,6 +55,9 @@ class _RecordEditPageState extends State<RecordEditPage> {
   bool _playing = false;
   int _recordSeconds = 0;
   Timer? _timer;
+  Timer? _draftTimer;
+  bool _saved = false;
+  bool _draftLoaded = false;
 
   @override
   void initState() {
@@ -78,17 +82,118 @@ class _RecordEditPageState extends State<RecordEditPage> {
       final now = DateTime.now();
       _time =
           '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-      // 新建记录：进来就自动定位当前地址
-      _autoLocate();
+      // 新建记录：先尝试恢复上次未保存的草稿（切到其他 App 被系统回收时不会丢）
+      _restoreDraft();
+      // 没有草稿或草稿里没有位置，才自动定位当前地址
+      if (_locationName.isEmpty) _autoLocate();
     }
+
+    // 输入框内容变化实时存草稿
+    _titleController.addListener(_scheduleDraftSave);
+    _contentController.addListener(_scheduleDraftSave);
+    WidgetsBinding.instance.addObserver(this);
 
     _audioSub = NativeAudio.onCompleted.listen((_) {
       if (mounted) setState(() => _playing = false);
     });
   }
 
+  /// 恢复上次未保存的新建记录草稿
+  void _restoreDraft() {
+    final d = RecordStore.readDraft();
+    if (d == null) return;
+    _draftLoaded = true;
+    _titleController.text = d.title;
+    _contentController.text = d.content;
+    _images = List<String>.from(d.images);
+    _videos = List<String>.from(d.videos);
+    _attachments = List<RecordAttachment>.from(d.attachments);
+    _voicePath = d.voicePath;
+    _voiceSeconds = d.voiceSeconds;
+    _date = DateTime.tryParse(d.date) ?? _date;
+    if (d.time.isNotEmpty) _time = d.time;
+    _locationName = d.locationName;
+    _locationLat = d.locationLat;
+    _locationLng = d.locationLng;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _toast('已恢复上次未保存的草稿');
+    });
+  }
+
+  // ---------------- 草稿自动保存 ----------------
+
+  /// 放弃已恢复的草稿，回到空白的新建记录
+  void _discardDraft() {
+    setState(() {
+      _titleController.clear();
+      _contentController.clear();
+      _images = [];
+      _videos = [];
+      _attachments = [];
+      _voicePath = '';
+      _voiceSeconds = 0;
+      _locationName = '';
+      _locationLat = 0;
+      _locationLng = 0;
+      _draftLoaded = false;
+      _date = widget.initialDate ?? DateTime.now();
+    });
+    RecordStore.clearDraft();
+    _autoLocate();
+  }
+
+  void _scheduleDraftSave() {
+    if (widget.existing != null || _saved) return;
+    _draftTimer?.cancel();
+    _draftTimer = Timer(const Duration(milliseconds: 400), _persistDraft);
+  }
+
+  void _persistDraft() {
+    if (widget.existing != null || _saved) return;
+    final item = RecordItem(
+      id: 'draft',
+      title: _titleController.text,
+      content: _contentController.text,
+      date: DateFormat('yyyy-MM-dd').format(_date),
+      time: _time,
+      images: _images,
+      voicePath: _voicePath,
+      voiceSeconds: _voiceSeconds,
+      videos: _videos,
+      attachments: _attachments,
+      locationName: _locationName,
+      locationLat: _locationLat,
+      locationLng: _locationLng,
+    );
+    final empty = item.title.trim().isEmpty &&
+        item.content.trim().isEmpty &&
+        item.images.isEmpty &&
+        item.videos.isEmpty &&
+        item.attachments.isEmpty &&
+        item.voicePath.isEmpty;
+    if (empty) {
+      RecordStore.clearDraft();
+      return;
+    }
+    RecordStore.saveDraft(item);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 切到后台/其他 App：立刻落盘，防止被系统回收后数据丢失
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden) {
+      _draftTimer?.cancel();
+      _persistDraft();
+    }
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _draftTimer?.cancel();
+    _persistDraft(); // 页面关闭前再落一次盘（保存成功时会被跳过）
     _timer?.cancel();
     _recorder.dispose();
     _audioSub?.cancel();
@@ -151,6 +256,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
         if (shot == null) return;
         final imported = await RecordStore.importImage(shot.path);
         setState(() => _images.add(imported));
+        _scheduleDraftSave();
         return;
       }
       final files = await _picker.pickMultiImage(imageQuality: 90);
@@ -160,6 +266,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
         imported.add(await RecordStore.importImage(f.path));
       }
       setState(() => _images.addAll(imported));
+      _scheduleDraftSave();
     } catch (e) {
       _toast('选择图片失败：$e');
     }
@@ -167,6 +274,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
 
   void _removeImage(int index) {
     setState(() => _images.removeAt(index));
+    _scheduleDraftSave();
   }
 
   // ---------------- 视频 ----------------
@@ -182,6 +290,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
       if (file == null) return;
       final imported = await RecordStore.importVideo(file.path);
       setState(() => _videos.add(imported));
+      _scheduleDraftSave();
     } catch (e) {
       _toast('选择视频失败：$e');
     }
@@ -189,6 +298,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
 
   void _removeVideo(int index) {
     setState(() => _videos.removeAt(index));
+    _scheduleDraftSave();
   }
 
   // ---------------- 文件附件 ----------------
@@ -216,6 +326,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
         return;
       }
       setState(() => _attachments.addAll(added));
+      _scheduleDraftSave();
     } catch (e) {
       _toast('选择文件失败：$e');
     }
@@ -223,6 +334,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
 
   void _removeAttachment(int index) {
     setState(() => _attachments.removeAt(index));
+    _scheduleDraftSave();
   }
 
   // ---------------- 录音 ----------------
@@ -269,6 +381,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
           }
         });
       }
+      _scheduleDraftSave();
     } catch (e) {
       _toast('停止录音失败：$e');
     }
@@ -301,6 +414,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
       _voiceSeconds = 0;
       _playing = false;
     });
+    _scheduleDraftSave();
   }
 
   // ---------------- 日期 ----------------
@@ -311,7 +425,10 @@ class _RecordEditPageState extends State<RecordEditPage> {
       initialDate: _date,
       markedDates: RecordStore.all().map((e) => e.date).toSet(),
     );
-    if (picked != null) setState(() => _date = picked);
+    if (picked != null) {
+      setState(() => _date = picked);
+      _scheduleDraftSave();
+    }
   }
 
   // ---------------- 地点 ----------------
@@ -334,6 +451,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
           _locationLng = (r?['lng'] as num?)?.toDouble() ?? 0;
         }
       });
+      _scheduleDraftSave();
       if (name.isEmpty) {
         _toast('暂时拿不到位置，可点“地点”这一行手动填写');
       }
@@ -368,6 +486,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
       _locationLat = updated.locationLat;
       _locationLng = updated.locationLng;
     });
+    _scheduleDraftSave();
   }
 
   String get _locationLabel {
@@ -405,6 +524,8 @@ class _RecordEditPageState extends State<RecordEditPage> {
       locationLat: _locationLat,
       locationLng: _locationLng,
     );
+    _saved = true;
+    if (widget.existing == null) RecordStore.clearDraft();
     Navigator.pop(context, item);
   }
 
@@ -432,6 +553,14 @@ class _RecordEditPageState extends State<RecordEditPage> {
           isEdit ? '编辑记录' : '添加新记录',
           style: TextStyle(color: AppTheme.ink),
         ),
+        actions: [
+          if (!isEdit && _draftLoaded)
+            TextButton(
+              onPressed: _discardDraft,
+              child: Text('清空草稿',
+                  style: TextStyle(color: AppTheme.primary, fontSize: 13)),
+            ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),

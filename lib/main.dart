@@ -73,6 +73,58 @@ class _MainContainerState extends State<MainContainer> {
     _paletteId = RecordStore.getTextSetting('palette', 'wood');
     AppTheme.apply(_paletteId);
     _reload();
+    // 启动时若有未保存的草稿（上次切到其他 App 被系统回收），提示恢复
+    WidgetsBinding.instance.addPostFrameCallback((_) => _resumeDraftIfAny());
+  }
+
+  /// 启动时提示恢复未保存的新建记录草稿
+  Future<void> _resumeDraftIfAny() async {
+    if (!mounted || !RecordStore.hasDraft) return;
+    final draft = RecordStore.readDraft();
+    if (draft == null) {
+      await RecordStore.clearDraft();
+      return;
+    }
+    final title =
+        draft.title.trim().isEmpty ? '（未填写标题）' : draft.title.trim();
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.card,
+        title: const Text('发现未保存的草稿'),
+        content: Text('上次新建记录「$title」还没保存就退出了，是否继续编辑？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('丢弃'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('继续编辑'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (go == true) {
+      final created = await Navigator.push<RecordItem>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RecordEditPage(
+            initialDate: DateTime.tryParse(draft.date) ?? _date,
+          ),
+        ),
+      );
+      if (created != null) {
+        await RecordStore.save(created);
+        _reload();
+        setState(() {
+          _date = DateTime.tryParse(created.date) ?? _date;
+        });
+      }
+    } else if (go == false) {
+      await RecordStore.clearDraft();
+    }
   }
 
   void _onPaletteChanged(String id) {

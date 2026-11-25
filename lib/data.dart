@@ -148,9 +148,11 @@ class RecordItem {
 class RecordStore {
   static const _recordBoxName = 'records_v1';
   static const _settingBoxName = 'settings_v1';
+  static const _draftBoxName = 'draft_v1';
 
   static late Box<String> _records;
   static late Box _settings;
+  static late Box<String> _drafts;
   static String _filesDir = '';
   static bool _ready = false;
 
@@ -159,6 +161,7 @@ class RecordStore {
     await Hive.initFlutter();
     _records = await Hive.openBox<String>(_recordBoxName);
     _settings = await Hive.openBox(_settingBoxName);
+    _drafts = await Hive.openBox<String>(_draftBoxName);
     final docs = await getApplicationDocumentsDirectory();
     _filesDir = docs.path;
     _ready = true;
@@ -250,6 +253,47 @@ class RecordStore {
 
   static Future<void> clearAll() async {
     await _records.clear();
+  }
+
+  // ---------------- 草稿（防止切到其他 App 后被系统回收丢数据） ----------------
+
+  static const _draftKey = 'new_record_draft';
+
+  /// 是否有未保存的新建记录草稿
+  static bool get hasDraft {
+    final raw = _drafts.get(_draftKey);
+    return raw != null && raw.isNotEmpty;
+  }
+
+  /// 读取未保存的草稿；内容为空或损坏时返回 null
+  static RecordItem? readDraft() {
+    final raw = _drafts.get(_draftKey);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final map = jsonDecode(raw) as Map<String, dynamic>;
+      final item = RecordItem.fromMap(map);
+      if (item.title.isEmpty &&
+          item.content.isEmpty &&
+          item.images.isEmpty &&
+          item.videos.isEmpty &&
+          item.attachments.isEmpty &&
+          item.voicePath.isEmpty) {
+        return null;
+      }
+      return item;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 保存草稿（页面每次变化、App 进入后台时调用）
+  static Future<void> saveDraft(RecordItem item) async {
+    await _drafts.put(_draftKey, jsonEncode(item.toMap()));
+  }
+
+  /// 保存成功后清除草稿
+  static Future<void> clearDraft() async {
+    await _drafts.delete(_draftKey);
   }
 
   // ---------------- 设置项 ----------------
